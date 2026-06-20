@@ -495,15 +495,34 @@
 <div class="airmail"></div>
 
 <script>
-  // Waitlist form: front-end only — connect to your email service later
+  // Waitlist form → MailerLite via JSONP (stays on page, keeps custom success UI)
+  // Get this URL from MailerLite: Forms → your form → Embed → HTML embed → <form action="...">
+  const ML_URL = 'https://assets.mailerlite.com/jsonp/2459748/forms/190815743964611764/subscribe';
   document.querySelectorAll('[data-signup]').forEach(form => {
     form.addEventListener('submit', e => {
       e.preventDefault();
       const email = form.querySelector('input[name=email]').value.trim();
       if(!email) return;
-      form.style.display = 'none';
+      const btn = form.querySelector('button');
       const success = form.parentElement.querySelector('.success');
-      if(success) success.style.display = 'flex';
+      const showSuccess = () => { form.style.display = 'none'; if(success) success.style.display = 'flex'; };
+      const showError = msg => {
+        btn.disabled = false;
+        let err = form.parentElement.querySelector('.signup-error');
+        if(!err){ err = document.createElement('p'); err.className = 'form-note signup-error'; err.style.color = '#c0392b'; form.parentElement.insertBefore(err, form.nextSibling); }
+        err.textContent = msg;
+      };
+      btn.disabled = true;
+      const cb = 'ml_cb_' + Date.now();
+      const script = document.createElement('script');
+      window[cb] = res => {
+        delete window[cb]; script.remove();
+        if(res && res.success) showSuccess();
+        else showError((res && res.errors && Object.values(res.errors).flat().join(' ')) || 'Something went wrong — please try again.');
+      };
+      script.onerror = () => { delete window[cb]; script.remove(); showError('Network error — please try again.'); };
+      script.src = ML_URL + '?fields[email]=' + encodeURIComponent(email) + '&callback=' + cb;
+      document.body.appendChild(script);
     });
   });
 
